@@ -24,7 +24,7 @@ from .data_manager import MessageRecorder
 __plugin_meta__ = PluginMetadata(
     name="whoasked",
     description="查询谁@了你或引用了你的消息",
-    usage="发送 谁问我了/谁at了我/谁@了我 即可查询",
+    usage="发送 谁问我了 即可查询",
     type="application",
     homepage="https://github.com/enKl03B/nonebot-plugin-whoasked",
     supported_adapters={"~onebot.v11"},
