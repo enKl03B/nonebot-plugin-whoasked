@@ -1,0 +1,28 @@
+[project]
+name = "nonebot-plugin-whoasked"
+version = "0.1.0"
+description = "查询谁@了你或引用了你的消息"
+authors = [
+    { name = "enKl03B", email = "enkl03b@163.com" }  # 修改为你的信息
+]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "nonebot2>=2.0.0",
+    "nonebot-adapter-onebot>=2.0.0",
+    "nonebot-plugin-localstore>=0.4.0",
+    "pydantic>=2.0.0"
+]
+
+[project.license]
+text = "MIT"
+
+[project.urls]
+Homepage = "https://github.com/enKl03B/nonebot-plugin-whoasked"  # 修改为你的项目地址
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "black>=23.0.0",
+    "isort>=5.0.0",
+    "mypy>=1.0.0"
+] 
