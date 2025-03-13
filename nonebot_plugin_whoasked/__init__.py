@@ -15,7 +15,12 @@ from nonebot.exception import FinishedException
 # 初始化日志记录器
 logger = logging.getLogger("nonebot.plugin.whoasked")
 
-# 定义插件元数据
+# 先导入依赖
+require("nonebot_plugin_localstore")
+from .config import Config, get_plugin_config
+from .data_manager import MessageRecorder
+
+# 然后定义插件元数据
 __plugin_meta__ = PluginMetadata(
     name="whoasked",
     description="查询谁@了你或引用了你的消息",
@@ -32,11 +37,6 @@ __plugin_meta__ = PluginMetadata(
         "repository": "https://github.com/enKl03B/nonebot-plugin-whoasked"
     }
 )
-
-# 导入依赖
-require("nonebot_plugin_localstore")
-from .config import Config, get_plugin_config
-from .data_manager import MessageRecorder
 
 # 全局配置
 global_config = get_driver().config
