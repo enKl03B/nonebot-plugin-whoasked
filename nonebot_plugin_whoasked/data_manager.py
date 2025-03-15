@@ -3,15 +3,17 @@ import time
 import os
 import logging
 from typing import List, Dict, Any
-from nonebot import get_driver
+from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent
-import nonebot_plugin_localstore as store
-from .config import get_plugin_config
+from nonebot import require
+from .config import plugin_config
 import traceback
 import asyncio
+from pathlib import Path
 
-# 初始化日志记录器
-logger = logging.getLogger("nonebot.plugin.whoasked")
+# 加载 localstore 插件
+require("nonebot_plugin_localstore")
+import nonebot_plugin_localstore as store
 
 class MessageRecorder:
     def __init__(self):
@@ -25,7 +27,7 @@ class MessageRecorder:
             # 创建数据目录（如果不存在）
             os.makedirs(self.data_dir, exist_ok=True)
             # 消息记录文件路径
-            self.message_file = os.path.join(self.data_dir, "message_records.json")
+            self.message_file = self.data_dir / "message_records.json"
             # 加载已有消息记录
             self.messages = self._load_messages()
             logger.info(f"消息记录器初始化成功，数据目录：{self.data_dir}")
@@ -36,13 +38,13 @@ class MessageRecorder:
     def _load_messages(self) -> Dict[str, List[Dict[str, Any]]]:
         """从文件加载消息记录"""
         # 如果文件不存在，返回空字典
-        if not os.path.exists(self.message_file):
+        if not self.message_file.exists():
             logger.info("未找到历史消息记录，创建新文件")
             return {}
             
         try:
             # 读取并解析 JSON 文件
-            with open(self.message_file, "r", encoding="utf-8") as f:
+            with self.message_file.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 logger.info(f"成功加载历史消息记录，共 {sum(len(v) for v in data.values())} 条消息")
                 return data
@@ -56,7 +58,7 @@ class MessageRecorder:
         os.makedirs(self.data_dir, exist_ok=True)
         try:
             # 将消息记录写入文件
-            with open(self.message_file, "w", encoding="utf-8") as f:
+            with self.message_file.open("w", encoding="utf-8") as f:
                 json.dump(self.messages, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"保存消息记录文件失败: {e}")
@@ -139,7 +141,7 @@ class MessageRecorder:
     def _clean_old_messages(self):
         """清理过期消息"""
         # 计算过期时间
-        expire_time = int(time.time()) - get_plugin_config(get_driver().config).whoasked_storage_days * 86400
+        expire_time = int(time.time()) - plugin_config.whoasked_storage_days * 86400
         # 遍历所有用户的消息记录
         for user_id in list(self.messages.keys()):
             # 过滤掉过期消息
@@ -154,11 +156,10 @@ class MessageRecorder:
             return []
         
         # 获取配置的最大消息数量
-        max_messages = get_plugin_config(get_driver().config).whoasked_max_messages
+        max_messages = plugin_config.whoasked_max_messages
         # 返回按时间排序的最新消息
         return sorted(self.messages[user_id], key=lambda x: x["time"], reverse=True)[:max_messages]
 
     async def _save_messages_async(self):
         """异步保存消息"""
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self._save_messages)
+        await asyncio.to_thread(self._save_messages)
