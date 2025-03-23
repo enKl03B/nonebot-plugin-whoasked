@@ -30,13 +30,13 @@ class Config(BaseModel):
         le=30
     )
 
-    @validator("whoasked_max_messages")
+    @field_validator("whoasked_max_messages")
     def validate_max_messages(cls, v):
         if v < 1:
             raise ValueError("最大消息数量必须大于0")
         return v
 
-    @validator("whoasked_storage_days")
+    @field_validator("whoasked_storage_days")
     def validate_storage_days(cls, v):
         if v < 1:
             raise ValueError("存储天数必须大于0")
