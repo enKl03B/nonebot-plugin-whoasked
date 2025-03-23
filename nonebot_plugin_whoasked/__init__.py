@@ -11,8 +11,6 @@ from nonebot import require, logger
 from nonebot.matcher import Matcher
 from nonebot.exception import FinishedException
 
-# 初始化日志记录器
-logger = logging.getLogger("nonebot.plugin.whoasked")
 
 # 先导入依赖
 require("nonebot_plugin_localstore")
