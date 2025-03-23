@@ -1,7 +1,6 @@
 import json
 import time
 import os
-import logging
 from typing import List, Dict, Any
 from nonebot import get_driver, logger
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent
@@ -20,12 +19,10 @@ class MessageRecorder:
         # 使用异步锁保证线程安全
         self._lock = asyncio.Lock()
         try:
-            # 获取全局配置
-            self.config = get_driver().config
-            # 使用 localstore 插件获取数据存储目录
-            self.data_dir = store.get_data_dir("whoasked")
+            # 使用 get_plugin_data_dir 获取插件数据目录
+            self.data_dir: Path = store.get_plugin_data_dir("whoasked")
             # 创建数据目录（如果不存在）
-            os.makedirs(self.data_dir, exist_ok=True)
+            self.data_dir.mkdir(parents=True, exist_ok=True)
             # 消息记录文件路径
             self.message_file = self.data_dir / "message_records.json"
             # 加载已有消息记录

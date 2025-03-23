@@ -1,6 +1,5 @@
 import traceback
 import time
-import logging
 from functools import wraps
 from typing import Dict, List, Set, Any, Union, Optional, Callable, Awaitable
 
@@ -8,7 +7,7 @@ from nonebot import get_driver, on_command, on_message, on_keyword
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, GroupMessageEvent, MessageEvent, Message
 from nonebot.rule import Rule, to_me
 from nonebot.plugin import PluginMetadata
-from nonebot import require
+from nonebot import require, logger
 from nonebot.matcher import Matcher
 from nonebot.exception import FinishedException
 

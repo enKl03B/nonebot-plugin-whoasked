@@ -38,9 +38,12 @@ WHOASKED_STORAGE_DAYS=3
 
 ## 注意事项
 - 该插件代码基本由AI完成，如有更好的改进建议欢迎提交pr
-- 目前仅使用了`OnebotV11适配器+Napcat`，在Linux系统下测试通过，如有兼容性问题/其他适配器的运行情况欢迎提交issue
+- 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题/其他适配器的运行情况欢迎提交issue
 
 ## 更新日志
+
+### 0.1.3
+更新依赖版本，优化导入
 
 ### 0.1.2
 根据[这里](https://github.com/nonebot/nonebot2/issues/3366#issuecomment-2726286976)对插件进行了修改

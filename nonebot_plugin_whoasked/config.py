@@ -1,7 +1,8 @@
 from typing import Any, Optional
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from pydantic import __version__ as pydantic_version
-from nonebot import get_plugin_config, logger  # 修改导入
+from nonebot import get_plugin_config, logger
+from nonebot.compat import field_validator
 
 # 判断 Pydantic 版本
 PYDANTIC_V2 = pydantic_version.startswith("2")
