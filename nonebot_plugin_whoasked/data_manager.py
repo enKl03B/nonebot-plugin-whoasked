@@ -20,7 +20,7 @@ class MessageRecorder:
         self._lock = asyncio.Lock()
         try:
             # 使用 get_plugin_data_dir 获取插件数据目录
-            self.data_dir: Path = store.get_plugin_data_dir("whoasked")
+            self.data_dir: Path = store.get_plugin_data_dir()
             # 创建数据目录（如果不存在）
             self.data_dir.mkdir(parents=True, exist_ok=True)
             # 消息记录文件路径
