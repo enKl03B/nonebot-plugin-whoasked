@@ -4,6 +4,8 @@ from functools import wraps
 from typing import Dict, List, Set, Any, Union, Optional, Callable, Awaitable
 
 from nonebot import get_driver, on_command, on_message, on_keyword
+import nonebot.log
+from nonebot.log import default_filter as original_default_filter # 导入并重命名原始过滤器
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, GroupMessageEvent, MessageEvent, Message
 from nonebot.rule import Rule, to_me
 from nonebot.plugin import PluginMetadata
@@ -30,30 +32,71 @@ __plugin_meta__ = PluginMetadata(
         "unique_name": "whoasked",
         "example": "谁问我了",
         "author": "enKl03B",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "repository": "https://github.com/enKl03B/nonebot-plugin-whoasked"
     }
 )
 
+# --- 定义新的组合过滤器 ---
+def custom_whoasked_filter(record):
+    """
+    自定义日志过滤器：
+    1. 应用原始的 NoneBot 默认过滤器。
+    2. 额外过滤掉本插件 on_message 的完成日志。
+    """
+    # 先应用原始的 default_filter
+    if not original_default_filter(record):
+        return False
+
+    # 检查是否是我们要过滤的特定日志
+    # record 是 loguru 的 record 字典
+    if record["name"] == "nonebot" and record["level"].name == "INFO":
+        log_message = record["message"]
+        # 根据日志内容精确匹配 record_msg 的完成日志
+        # 注意 module 名需要和你的插件目录名一致
+        if "Matcher(type='message', module='nonebot_plugin_whoasked'" in log_message and \
+           log_message.endswith("running complete"):
+            return False  # 返回 False，过滤掉这条日志
+    return True # 返回 True，保留其他日志
+
 # 全局配置
 global_config = get_driver().config
-plugin_config = get_plugin_config(global_config)
 
 # 修改消息记录器初始化
 message_recorder = None
 
 async def init_message_recorder():
     global message_recorder
-    message_recorder = MessageRecorder()
-    logger.info("消息记录器初始化完成")
+    if message_recorder is None: # 避免重复初始化
+        message_recorder = MessageRecorder()
+        logger.info("消息记录器初始化完成")
+
 
 # 在插件加载时初始化
 from nonebot import get_driver
 driver = get_driver()
 
 @driver.on_startup
-async def _():
+async def _startup():
+    """插件启动时的操作"""
+    # 初始化消息记录器
     await init_message_recorder()
+
+    # --- 应用新的过滤器 ---
+    # 检查是否已经被 patch 过，防止重复 patch (例如在 reload 插件时)
+    if getattr(nonebot.log.default_filter, "__name__", None) != 'custom_whoasked_filter':
+        logger.debug("应用自定义日志过滤器以隐藏 record_msg 完成日志。")
+        # 使用我们的函数替换 nonebot.log.default_filter
+        nonebot.log.default_filter = custom_whoasked_filter
+    else:
+        logger.debug("自定义日志过滤器已应用。")
+
+
+@driver.on_shutdown
+async def shutdown_hook():
+    """在驱动器关闭时调用"""
+    if message_recorder:
+        await message_recorder.shutdown()
 
 # 关键词集合
 QUERY_KEYWORDS = {"谁问我了"}
@@ -81,10 +124,15 @@ record_msg = on_message(priority=1, block=False)
 @record_msg.handle()
 async def _(bot: Bot, event: MessageEvent):
     """记录所有消息"""
+    if message_recorder is None:
+        logger.warning("尝试记录消息时，MessageRecorder 未初始化。")
+        return
     try:
         await message_recorder.record_message(bot, event)
     except Exception as e:
+        # 保持详细的错误日志
         logger.error(f"记录消息失败: {e}")
+        logger.error(traceback.format_exc()) # 记录完整的 traceback
 
 # 修改命令处理器
 who_at_me = on_command("谁问我了", priority=50, block=True)

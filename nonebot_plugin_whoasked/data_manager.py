@@ -18,6 +18,7 @@ class MessageRecorder:
     def __init__(self):
         # 使用异步锁保证线程安全
         self._lock = asyncio.Lock()
+        self._shutting_down = False  # 新增关闭标志
         try:
             # 使用 get_plugin_data_dir 获取插件数据目录
             self.data_dir: Path = store.get_plugin_data_dir()
@@ -62,6 +63,10 @@ class MessageRecorder:
     
     async def record_message(self, bot: Bot, event: MessageEvent):
         """记录新消息"""
+        if self._shutting_down:  # 如果正在关闭，则不再记录
+             logger.debug("正在关闭，跳过消息记录")
+             return
+
         async with self._lock:  # 使用锁保证线程安全
             try:
                 at_list = []  # 被@的用户列表
@@ -160,3 +165,17 @@ class MessageRecorder:
     async def _save_messages_async(self):
         """异步保存消息"""
         await asyncio.to_thread(self._save_messages)
+
+    async def shutdown(self):
+        """执行关闭前的清理操作"""
+        if self._shutting_down:
+            return
+        logger.info("开始关闭 MessageRecorder，执行最后一次保存...")
+        self._shutting_down = True
+        async with self._lock:  # 获取锁，确保没有其他记录操作在进行
+            try:
+                self._save_messages()  # 直接调用同步保存方法
+                logger.info("MessageRecorder 最后一次保存完成。")
+            except Exception as e:
+                logger.error(f"关闭 MessageRecorder 时保存消息失败: {e}")
+                logger.error(traceback.format_exc())

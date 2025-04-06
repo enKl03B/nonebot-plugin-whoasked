@@ -1,6 +1,7 @@
-# nonebot-plugin-whoasked
+# 谁问你了？
 
 一个用于查询谁@了你或引用了你的消息的NoneBot2插件
+插件名：`nonebot-plugin-whoasked`
 
 ## 功能
 
@@ -42,6 +43,9 @@ WHOASKED_STORAGE_DAYS=3
 
 ## 更新日志
 
+### 0.2.0
+修复了一些体验问题
+
 ### 0.1.3.3
 修复已知Bug
 
@@ -49,7 +53,7 @@ WHOASKED_STORAGE_DAYS=3
 更新依赖版本，优化导入
 
 ### 0.1.2
-根据[这里](https://github.com/nonebot/nonebot2/issues/3366#issuecomment-2726286976)对插件进行了修改
+更改插件以符合规范
 
 ### 0.1.1
 修改元数据的一处描述错误
