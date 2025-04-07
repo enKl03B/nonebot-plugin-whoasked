@@ -1,20 +1,9 @@
-from typing import Any, Optional
-from pydantic import BaseModel, Field
-from pydantic import __version__ as pydantic_version
 from nonebot import get_plugin_config, logger
-from nonebot.compat import field_validator
-
-# 判断 Pydantic 版本
-PYDANTIC_V2 = pydantic_version.startswith("2")
+from nonebot.compat import BaseModel, field_validator, Field
+from typing import Union
 
 class Config(BaseModel):
     """插件配置类"""
-    
-    if PYDANTIC_V2:
-        model_config = {"extra": "ignore"}  # V2 配置方式
-    else:
-        class Config:
-            extra = "ignore"  # V1 配置方式
     
     whoasked_max_messages: int = Field(
         default=20,
@@ -31,17 +20,25 @@ class Config(BaseModel):
     )
 
     @field_validator("whoasked_max_messages")
-    def validate_max_messages(cls, v):
-        if v < 1:
-            raise ValueError("最大消息数量必须大于0")
-        return v
+    def validate_max_messages(cls, v: Union[int, str, float]):
+        try:
+            v = int(v) if not isinstance(v, int) else v
+            if v < 1:
+                raise ValueError("最大消息数量必须大于0")
+            return min(v, 100)  # 确保不超过上限
+        except (ValueError, TypeError):
+            logger.warning(f"无效的 whoasked_max_messages 配置值: {v}, 使用默认值 20")
+            return 20
 
     @field_validator("whoasked_storage_days")
-    def validate_storage_days(cls, v):
-        if v < 1:
-            raise ValueError("存储天数必须大于0")
-        return v
+    def validate_storage_days(cls, v: Union[int, str, float]):
+        try:
+            v = int(v) if not isinstance(v, int) else v
+            if v < 1:
+                raise ValueError("存储天数必须大于0")
+            return min(v, 30)  # 确保不超过上限
+        except (ValueError, TypeError):
+            logger.warning(f"无效的 whoasked_storage_days 配置值: {v}, 使用默认值 3")
+            return 3
 
-# 删除 _config_cache 和 get_plugin_config 函数
-# 直接使用 get_plugin_config 获取配置
 plugin_config = get_plugin_config(Config)

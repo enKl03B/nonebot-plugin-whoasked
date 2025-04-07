@@ -2,6 +2,7 @@ import traceback
 import time
 from functools import wraps
 from typing import Dict, List, Set, Any, Union, Optional, Callable, Awaitable
+import asyncio
 
 from nonebot import get_driver, on_command, on_message, on_keyword
 import nonebot.log
@@ -32,32 +33,34 @@ __plugin_meta__ = PluginMetadata(
         "unique_name": "whoasked",
         "example": "谁问我了",
         "author": "enKl03B",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "repository": "https://github.com/enKl03B/nonebot-plugin-whoasked"
     }
 )
+
+# --- 全局关闭状态标志 ---
+_is_shutting_down = False
 
 # --- 定义新的组合过滤器 ---
 def custom_whoasked_filter(record):
     """
     自定义日志过滤器：
     1. 应用原始的 NoneBot 默认过滤器。
-    2. 额外过滤掉本插件 on_message 的完成日志。
+    2. 额外过滤掉来自 nonebot logger 的、特定模块的 message 类型 matcher 的完成日志。
     """
-    # 先应用原始的 default_filter
     if not original_default_filter(record):
         return False
 
-    # 检查是否是我们要过滤的特定日志
     # record 是 loguru 的 record 字典
     if record["name"] == "nonebot" and record["level"].name == "INFO":
         log_message = record["message"]
-        # 根据日志内容精确匹配 record_msg 的完成日志
-        # 注意 module 名需要和你的插件目录名一致
-        if "Matcher(type='message', module='nonebot_plugin_whoasked'" in log_message and \
+        # 检查关键部分是否存在，而不是完整的结构和行号
+        if "Matcher(type='message'," in log_message and \
+           "module='nonebot_plugin_whoasked'" in log_message and \
            log_message.endswith("running complete"):
-            return False  # 返回 False，过滤掉这条日志
-    return True # 返回 True，保留其他日志
+            return False  # 过滤掉这条日志
+    return True
+
 
 # 全局配置
 global_config = get_driver().config
@@ -71,6 +74,10 @@ async def init_message_recorder():
         message_recorder = MessageRecorder()
         logger.info("消息记录器初始化完成")
 
+# --- 定义关闭感知的 Rule ---
+async def shutdown_aware_rule() -> bool:
+    """如果程序正在关闭，则返回 False"""
+    return not _is_shutting_down
 
 # 在插件加载时初始化
 from nonebot import get_driver
@@ -79,6 +86,8 @@ driver = get_driver()
 @driver.on_startup
 async def _startup():
     """插件启动时的操作"""
+    global _is_shutting_down
+    _is_shutting_down = False # 确保启动时标志为 False
     # 初始化消息记录器
     await init_message_recorder()
 
@@ -95,8 +104,16 @@ async def _startup():
 @driver.on_shutdown
 async def shutdown_hook():
     """在驱动器关闭时调用"""
+    global _is_shutting_down
+    logger.info("检测到关闭信号，设置关闭标志...")
+    _is_shutting_down = True # 立即设置关闭标志
+
+    # 等待一小段时间，让事件循环有机会处理完当前正在执行的任务
+    # 并让 Rule 生效，阻止新的 Matcher 运行
+    await asyncio.sleep(0.1) 
+
     if message_recorder:
-        await message_recorder.shutdown()
+        await message_recorder.shutdown() # 然后再执行数据保存等清理操作
 
 # 关键词集合
 QUERY_KEYWORDS = {"谁问我了"}
@@ -119,20 +136,25 @@ def catch_exception(func: Callable) -> Callable:
                     raise
     return wrapper
 
-# 修改消息记录器注册
-record_msg = on_message(priority=1, block=False)
-@record_msg.handle()
-async def _(bot: Bot, event: MessageEvent):
+# --- 修改消息记录器注册，加入 Rule ---
+record_msg = on_message(rule=shutdown_aware_rule, priority=1, block=False) # 添加 rule
+@record_msg.handle() # 现在日志中看到的行号可能是这里
+async def _handle_record_msg(bot: Bot, event: MessageEvent):
     """记录所有消息"""
+    # 无需在此处再次检查 _is_shutting_down，因为 Rule 已经阻止了它
     if message_recorder is None:
         logger.warning("尝试记录消息时，MessageRecorder 未初始化。")
         return
     try:
+        # 注意：即使 Rule 阻止了新的匹配，如果 handle 在 Rule 检查前已被调用，
+        # 这里的 shutdown 检查仍然是有意义的，防止并发问题。
+        if message_recorder._shutting_down:
+             logger.debug("MessageRecorder 正在关闭，跳过内部记录逻辑")
+             return
         await message_recorder.record_message(bot, event)
     except Exception as e:
-        # 保持详细的错误日志
         logger.error(f"记录消息失败: {e}")
-        logger.error(traceback.format_exc()) # 记录完整的 traceback
+        logger.error(traceback.format_exc())
 
 # 修改命令处理器
 who_at_me = on_command("谁问我了", priority=50, block=True)
@@ -154,6 +176,9 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
     current_group_id = str(event.group_id)
     
     try:
+        async with asyncio.timeout(10):  # 增加10秒超时控制
+            user_id = str(event.user_id)
+            current_group_id = str(event.group_id)
         # 添加性能监控
         start_time = time.time()
         

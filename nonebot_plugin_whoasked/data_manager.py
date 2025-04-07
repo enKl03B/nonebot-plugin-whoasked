@@ -142,15 +142,20 @@ class MessageRecorder:
     
     def _clean_old_messages(self):
         """清理过期消息"""
-        # 计算过期时间
-        expire_time = int(time.time()) - plugin_config.whoasked_storage_days * 86400
-        # 遍历所有用户的消息记录
-        for user_id in list(self.messages.keys()):
-            # 过滤掉过期消息
-            self.messages[user_id] = [msg for msg in self.messages[user_id] if msg["time"] > expire_time]
-            # 如果用户没有消息记录，删除该用户
-            if not self.messages[user_id]:
-                del self.messages[user_id]
+        if not hasattr(plugin_config, 'whoasked_storage_days'):  # 增加配置检查
+            logger.warning("未找到有效存储天数配置，使用默认值3天")
+            storage_days = 3
+        else:
+            storage_days = plugin_config.whoasked_storage_days
+            
+        expire_time = int(time.time()) - storage_days * 86400
+        
+        # 使用字典推导式优化清理逻辑
+        self.messages = {
+            user_id: [msg for msg in msgs if msg["time"] > expire_time]
+            for user_id, msgs in self.messages.items()
+            if msgs and any(msg["time"] > expire_time for msg in msgs)
+        }
     
     async def get_at_messages(self, user_id: str) -> List[Dict[str, Any]]:
         """获取指定用户的@消息"""

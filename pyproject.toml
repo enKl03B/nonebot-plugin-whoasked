@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-whoasked"
-version = "0.2.0"
+version = "0.2.1"
 description = "查询谁@了你或引用了你的消息"
 authors = [
     { name = "enKl03B", email = "enkl03b@163.com" }  
@@ -25,4 +25,4 @@ dev = [
     "black>=23.0.0",
     "isort>=5.0.0",
     "mypy>=1.0.0"
-] 
+]
