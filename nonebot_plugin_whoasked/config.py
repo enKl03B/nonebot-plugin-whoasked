@@ -1,5 +1,6 @@
 from nonebot import get_plugin_config, logger
-from nonebot.compat import BaseModel, field_validator, Field
+from nonebot.compat import BaseModel, field_validator
+from pydantic import Field
 from typing import Union
 
 class Config(BaseModel):

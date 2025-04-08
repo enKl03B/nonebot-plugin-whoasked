@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
         "unique_name": "whoasked",
         "example": "谁问我了",
         "author": "enKl03B",
-        "version": "0.2.1",
+        "version": "0.2.1.1",
         "repository": "https://github.com/enKl03B/nonebot-plugin-whoasked"
     }
 )
