@@ -1,6 +1,7 @@
 # 谁问你了？
 
 一个用于查询谁@了你或引用了你的消息的NoneBot2插件
+
 插件名：`nonebot-plugin-whoasked`
 
 ## 功能
