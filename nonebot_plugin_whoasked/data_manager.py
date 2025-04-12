@@ -72,6 +72,7 @@ class MessageRecorder:
                 at_list = []  # 被@的用户列表
                 is_reply = False  # 是否是回复消息
                 reply_user_id = None  # 被回复的用户ID
+                replied_message_segments = None # 初始化被引用消息段列表
                 
                 # 获取消息内容
                 message = event.get_message()
@@ -93,19 +94,8 @@ class MessageRecorder:
                     reply_msg = event.reply
                     is_reply = True
                     reply_user_id = str(reply_msg.sender.user_id)
-                    
-                    # 将被引用消息也记录下来
-                    reply_message_info = {
-                        "time": int(time.time()),
-                        "user_id": str(reply_msg.sender.user_id),
-                        "raw_message": str(reply_msg.message),
-                        "at_list": [],
-                        "is_reply": False,
-                        "reply_user_id": None,
-                        "sender_name": reply_msg.sender.card or reply_msg.sender.nickname,
-                        "group_id": group_id
-                    }
-                    self._record_for_users([], None, reply_message_info)
+                    # 将 Message 对象转换为可序列化的字典列表
+                    replied_message_segments = [{'type': seg.type, 'data': seg.data} for seg in reply_msg.message]
                 
                 # 记录当前消息
                 message_info = {
@@ -115,6 +105,7 @@ class MessageRecorder:
                     "at_list": at_list,
                     "is_reply": is_reply,
                     "reply_user_id": reply_user_id,
+                    "replied_message_segments": replied_message_segments, # 新增字段
                     "group_id": group_id,
                     "sender_name": event.sender.card or event.sender.nickname if isinstance(event, GroupMessageEvent) else event.sender.nickname
                 }
@@ -142,7 +133,7 @@ class MessageRecorder:
     
     def _clean_old_messages(self):
         """清理过期消息"""
-        if not hasattr(plugin_config, 'whoasked_storage_days'):  # 增加配置检查
+        if not hasattr(plugin_config, 'whoasked_storage_days'):  # 配置检查
             logger.warning("未找到有效存储天数配置，使用默认值3天")
             storage_days = 3
         else:

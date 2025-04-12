@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
         "unique_name": "whoasked",
         "example": "谁问我了",
         "author": "enKl03B",
-        "version": "0.2.1.1",
+        "version": "0.2.2",
         "repository": "https://github.com/enKl03B/nonebot-plugin-whoasked"
     }
 )
@@ -43,24 +43,23 @@ _is_shutting_down = False
 
 # --- 定义新的组合过滤器 ---
 def custom_whoasked_filter(record):
-    """
-    自定义日志过滤器：
-    1. 应用原始的 NoneBot 默认过滤器。
-    2. 额外过滤掉来自 nonebot logger 的、特定模块的 message 类型 matcher 的完成日志。
-    """
+    """日志过滤"""
     if not original_default_filter(record):
         return False
 
-    # record 是 loguru 的 record 字典
-    if record["name"] == "nonebot" and record["level"].name == "INFO":
-        log_message = record["message"]
-        # 检查关键部分是否存在，而不是完整的结构和行号
-        if "Matcher(type='message'," in log_message and \
-           "module='nonebot_plugin_whoasked'" in log_message and \
-           log_message.endswith("running complete"):
-            return False  # 过滤掉这条日志
-    return True
+    # 检查是否是 NoneBot 的 SUCCESS 日志
+    if record["name"] == "nonebot" and record["level"].name == "SUCCESS":
+        # 检查日志消息是否包含特定 Matcher 的完成信息
+        message = record["message"]
+        # 精确匹配 record_msg Matcher 的完成日志
+        is_target_matcher = "Matcher(type='message', module='nonebot_plugin_whoasked'" in message and "record_msg" in message
+        is_completion_log = "running complete" in message
 
+        if is_target_matcher and is_completion_log:
+            # logger.trace(f"过滤掉 record_msg 的 SUCCESS 日志: {message}") # 保留 TRACE 级别用于调试
+            return False # 过滤掉这条日志
+
+    return True # 保留其他所有日志
 
 # 全局配置
 global_config = get_driver().config
@@ -166,7 +165,6 @@ async def handle_who_at_me(bot: Bot, event: GroupMessageEvent):
         await who_at_me.finish("消息记录器未初始化，请稍后再试")
         return
         
-    logger.info(f"收到谁@我命令，来自用户 {event.user_id}，群 {event.group_id}")
     await process_query(bot, event, who_at_me)
 
 # 修改查询处理函数
@@ -202,25 +200,109 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
             await matcher.finish("最近在本群没有人问你")
             return
         
-        # 构建转发消息
-        forward_messages = [{
-            "type": "node",
-            "data": {
-                "name": event.sender.card or event.sender.nickname,
-                "uin": user_id,
-                "content": str(event.get_message())
-            }
-        }]
-        
-        # 使用列表推导式优化
-        forward_messages.extend({
-            "type": "node",
-            "data": {
-                "name": msg_data["sender_name"],
-                "uin": msg_data["user_id"],
-                "content": f"【{'引用了你的消息' if msg_data.get('is_reply', False) else '@了你'}】\n{msg_data['raw_message']}"
-            }
-        } for msg_data in filtered_messages)
+        forward_messages = []
+
+        # 定义格式化函数
+        def format_message_content(msg_data):
+            msg_time = msg_data["time"]
+            time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(msg_time))
+            time_passed = int(time.time()) - msg_time
+            if time_passed < 60:
+                elapsed = f"{time_passed}秒前"
+            elif time_passed < 3600:
+                elapsed = f"{time_passed//60}分钟前"
+            elif time_passed < 86400:
+                elapsed = f"{time_passed//3600}小时前"
+            else:
+                elapsed = f"{time_passed//86400}天前"
+
+            if msg_data.get('is_reply', False):
+                replied_segments_data = msg_data.get('replied_message_segments') # 获取可能存在的字段
+                replied_message_content = Message() # 初始化为空 Message
+                
+                # 检查是否为新格式数据 (包含有效的 segments 列表)
+                if replied_segments_data and isinstance(replied_segments_data, list):
+                    try:
+                        # 手动从字典列表构建 MessageSegment 并添加到 replied_message_content
+                        for seg_data in replied_segments_data:
+                            # 创建单个 MessageSegment
+                            try:
+                                seg = MessageSegment(type=seg_data['type'], data=seg_data['data'])
+                            except Exception as seg_e:
+                                logger.warning(f"创建消息段失败: {seg_e} 数据: {seg_data}")
+                                continue # 跳过无法创建的段
+                                
+                            # 处理不同类型的消息段
+                            if seg.type == "text":
+                                replied_message_content.append(seg)
+                            elif seg.type == "image":
+                                # 将图片显示为文字标识
+                                replied_message_content.append(MessageSegment.text("[图片]"))
+                            # 添加对其他类型消息段的处理
+                            else:
+                                # 定义类型到中文名称的映射
+                                type_mapping = {
+                                    "face": "表情",
+                                    "record": "语音",
+                                    "video": "视频",
+                                    "at": "@",
+                                    "rps": "猜拳",
+                                    "dice": "骰子",
+                                    "share": "链接分享",
+                                    "contact": "名片",
+                                    "location": "位置",
+                                    "music": "音乐",
+                                    "forward": "合并消息",
+                                    "json": "JSON消息",
+                                    "file": "文件",
+                                    "markdown": "Markdown",
+                                    "lightapp": "小程序",
+                                    "mface": "大表情"
+                                }
+                                # 查找中文名，找不到则使用原始类型或通用提示
+                                display_name = type_mapping.get(seg.type, seg.type.capitalize())
+                                replied_message_content.append(MessageSegment.text(f"[{display_name}]"))
+                    except Exception as e:
+                        logger.error(f"反序列化被引用消息失败: {e}")
+                        # 清空可能已部分添加的内容，并添加错误提示
+                        replied_message_content.clear()
+                        replied_message_content.append(MessageSegment.text("[无法加载被引用消息]")) 
+                else:
+                    # 处理旧格式数据或加载失败的情况
+                    replied_message_content.append(MessageSegment.text("[旧格式数据，无法加载被引用消息内容]"))
+
+                # 构建新的引用消息格式
+                content_msg = Message()
+                content_msg.append(MessageSegment.text("【引用了你的消息】\n"))
+                content_msg.append(MessageSegment.text(f"{msg_data['raw_message']}\n"))
+                content_msg.append(MessageSegment.text("━━━━━━━━━━━\n"))
+                content_msg.append(MessageSegment.text("被引用的消息：\n"))
+                content_msg.extend(replied_message_content) # 添加处理后的被引用消息内容
+                content_msg.append(MessageSegment.text("\n━━━━━━━━━━━\n"))
+                content_msg.append(MessageSegment.text(f"📅消息发送时间： {time_str} ({elapsed})"))
+                return content_msg
+            else: # @消息保持原格式
+                 content = f"""
+【@了你】
+{msg_data['raw_message']}
+━━━━━━━━━━━
+📅消息发送时间： {time_str} ({elapsed})
+"""
+                 return MessageSegment.text(content)
+
+        # 构建转发消息节点
+        for msg_data in filtered_messages:
+            node_content_message = format_message_content(msg_data) # 返回 Message 对象
+            # 将 Message 对象显式序列化为 API 需要的列表格式
+            node_content_serializable = [{'type': seg.type, 'data': seg.data} for seg in node_content_message]
+            forward_messages.append({
+                "type": "node",
+                "data": {
+                    "nickname": msg_data["sender_name"],
+                    "user_id": msg_data["user_id"],
+                    "content": node_content_serializable # 使用序列化后的列表
+                }
+            })
         
         # 添加性能日志
         logger.info(f"处理查询请求耗时: {time.time() - start_time:.2f}秒")

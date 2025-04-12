@@ -7,7 +7,7 @@ class Config(BaseModel):
     """插件配置类"""
     
     whoasked_max_messages: int = Field(
-        default=20,
+        default=25,
         description="最大返回消息数量",
         gt=0,
         le=100
@@ -28,7 +28,7 @@ class Config(BaseModel):
                 raise ValueError("最大消息数量必须大于0")
             return min(v, 100)  # 确保不超过上限
         except (ValueError, TypeError):
-            logger.warning(f"无效的 whoasked_max_messages 配置值: {v}, 使用默认值 20")
+            logger.warning(f"无效的 whoasked_max_messages 配置值: {v}, 使用默认值 25")
             return 20
 
     @field_validator("whoasked_storage_days")

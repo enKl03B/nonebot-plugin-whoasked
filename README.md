@@ -22,10 +22,10 @@ nb plugin install nonebot-plugin-whoasked
 在.env文件中添加以下配置（可选）：
 
 ```bash
-# 最大返回消息数量，默认20
-WHOASKED_MAX_MESSAGES=20
+# 最大返回消息数量，默认25，最大值100
+WHOASKED_MAX_MESSAGES=25
 
-# 消息存储天数，默认3
+# 消息存储天数，默认3，最大值30
 WHOASKED_STORAGE_DAYS=3
 ```
 
@@ -42,6 +42,11 @@ WHOASKED_STORAGE_DAYS=3
 - 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题/其他适配器的运行情况欢迎提交issue
 
 ## 更新日志
+
+### 0.2.2
+优化日志输出和引用消息展示形式
+> [!IMPORTANT]
+> 自该版本起，`WHOASKED_MAX_MESSAGES`的默认值将更改为25
 
 ### 0.2.0、0.2.1.1
 修复了一些体验问题
@@ -61,6 +66,11 @@ WHOASKED_STORAGE_DAYS=3
 ### 0.1.0
 初次发布
 
+
+## 鸣谢
+- [NoneBot2](https://github.com/nonebot/nonebot2) - 跨平台 Python 异步机器人框架
+- [noneBot-plugin-localStore](https://github.com/nonebot/plugin-localstore) - 实现本地数据存储 
+以及所有未提及的相关项目❤
 
 ## 许可证
 
