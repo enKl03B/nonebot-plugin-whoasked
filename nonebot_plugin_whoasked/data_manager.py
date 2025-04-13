@@ -79,9 +79,6 @@ class MessageRecorder:
                 if not message:
                     return
                 
-                # 如果是群消息，获取群ID
-                group_id = str(event.group_id) if isinstance(event, GroupMessageEvent) else None
-                
                 # 处理@消息
                 for seg in message:
                     if seg.type == "at":
@@ -96,6 +93,14 @@ class MessageRecorder:
                     reply_user_id = str(reply_msg.sender.user_id)
                     # 将 Message 对象转换为可序列化的字典列表
                     replied_message_segments = [{'type': seg.type, 'data': seg.data} for seg in reply_msg.message]
+                
+                # 优化：检查消息是否包含@或引用
+                if not at_list and not is_reply:
+                    # logger.trace("消息既不包含@也不是回复，跳过记录") # 可以取消注释以进行调试
+                    return # 如果消息无关，则直接返回，不记录
+
+                # --- 如果消息相关，则继续记录 --- 
+                group_id = str(event.group_id) if isinstance(event, GroupMessageEvent) else None
                 
                 # 记录当前消息
                 message_info = {
@@ -166,7 +171,7 @@ class MessageRecorder:
         """执行关闭前的清理操作"""
         if self._shutting_down:
             return
-        logger.info("开始关闭 MessageRecorder，执行最后一次保存...")
+        logger.debug("开始关闭 MessageRecorder，执行最后一次保存...")
         self._shutting_down = True
         async with self._lock:  # 获取锁，确保没有其他记录操作在进行
             try:

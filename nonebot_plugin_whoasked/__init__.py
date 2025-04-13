@@ -3,10 +3,11 @@ import time
 from functools import wraps
 from typing import Dict, List, Set, Any, Union, Optional, Callable, Awaitable
 import asyncio
+import sys # 导入 sys 模块
 
 from nonebot import get_driver, on_command, on_message, on_keyword
 import nonebot.log
-from nonebot.log import default_filter as original_default_filter # 导入并重命名原始过滤器
+from nonebot.log import default_filter as original_default_filter, logger_id, default_format # 导入并重命名原始过滤器，导入 logger_id 和 default_format
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, GroupMessageEvent, MessageEvent, Message
 from nonebot.rule import Rule, to_me
 from nonebot.plugin import PluginMetadata
@@ -44,22 +45,37 @@ _is_shutting_down = False
 # --- 定义新的组合过滤器 ---
 def custom_whoasked_filter(record):
     """日志过滤"""
+    # 应用原始的 NoneBot 默认过滤器
     if not original_default_filter(record):
         return False
 
-    # 检查是否是 NoneBot 的 SUCCESS 日志
-    if record["name"] == "nonebot" and record["level"].name == "SUCCESS":
-        # 检查日志消息是否包含特定 Matcher 的完成信息
-        message = record["message"]
-        # 精确匹配 record_msg Matcher 的完成日志
-        is_target_matcher = "Matcher(type='message', module='nonebot_plugin_whoasked'" in message and "record_msg" in message
-        is_completion_log = "running complete" in message
+    log_name = record.get("name")
+    log_level_name = record.get("level").name
+    log_message = record.get("message", "")
 
-        if is_target_matcher and is_completion_log:
-            # logger.trace(f"过滤掉 record_msg 的 SUCCESS 日志: {message}") # 保留 TRACE 级别用于调试
+    # 条件 1: 过滤 record_msg 的 SUCCESS 完成日志 
+    if log_name == "nonebot" and log_level_name == "SUCCESS":
+        is_record_msg_matcher = "Matcher(type='message', module='nonebot_plugin_whoasked'" in log_message and "record_msg" in log_message
+        is_completion_log = "running complete" in log_message
+        if is_record_msg_matcher and is_completion_log:
             return False # 过滤掉这条日志
 
-    return True # 保留其他所有日志
+    # 条件 2: 过滤本插件内所有 Matcher 的 INFO 完成日志 
+    if log_name == "nonebot" and log_level_name == "INFO":
+        # 检查是否是 "running complete" 日志
+        is_whoasked_matcher_complete = "Matcher(" in log_message and "module=nonebot_plugin_whoasked" in log_message and "running complete" in log_message
+        if is_whoasked_matcher_complete:
+            logger.debug(f"条件2满足，INFO完成日志: {log_message}。将被过滤。")
+            return False # 过滤掉这条日志
+        
+        # 条件 3: 过滤本插件内所有 Matcher 的 "Event will be handled" 日志
+        is_whoasked_matcher_handle = log_message.startswith("Event will be handled by Matcher(") and "module=nonebot_plugin_whoasked" in log_message
+        if is_whoasked_matcher_handle:
+            logger.debug(f"条件3满足，INFO处理日志: {log_message}。将被过滤。")
+            return False # 过滤掉这条日志
+
+    # 如果以上条件都不满足，则保留该日志
+    return True
 
 # 全局配置
 global_config = get_driver().config
@@ -71,7 +87,6 @@ async def init_message_recorder():
     global message_recorder
     if message_recorder is None: # 避免重复初始化
         message_recorder = MessageRecorder()
-        logger.info("消息记录器初始化完成")
 
 # --- 定义关闭感知的 Rule ---
 async def shutdown_aware_rule() -> bool:
@@ -90,21 +105,30 @@ async def _startup():
     # 初始化消息记录器
     await init_message_recorder()
 
-    # --- 应用新的过滤器 ---
-    # 检查是否已经被 patch 过，防止重复 patch (例如在 reload 插件时)
-    if getattr(nonebot.log.default_filter, "__name__", None) != 'custom_whoasked_filter':
-        logger.debug("应用自定义日志过滤器以隐藏 record_msg 完成日志。")
-        # 使用我们的函数替换 nonebot.log.default_filter
-        nonebot.log.default_filter = custom_whoasked_filter
-    else:
-        logger.debug("自定义日志过滤器已应用。")
+    # --- 应用新的过滤器 (通过替换 Handler) ---
+    # 尝试移除默认 handler
+    try:
+        logger.remove(logger_id)
+        logger.debug("已移除默认日志处理器。") # 改为 DEBUG
+        # 添加新的 handler，使用自定义过滤器和默认格式
+        logger.add(
+            sys.stdout, # 输出到控制台
+            level=0, # level 设置为 0，让自定义 filter 完全控制
+            diagnose=False, # 根据需要设置
+            filter=custom_whoasked_filter, # 使用我们的过滤器
+            format=default_format # 使用 NoneBot 的默认格式
+        )
+    except ValueError:
+        # 如果 logger_id 已经被移除，这里会触发 ValueError
+        logger.warning("默认日志处理器已被移除或未找到。")
+
 
 
 @driver.on_shutdown
 async def shutdown_hook():
     """在驱动器关闭时调用"""
     global _is_shutting_down
-    logger.info("检测到关闭信号，设置关闭标志...")
+    logger.debug("检测到关闭信号，设置关闭标志...")
     _is_shutting_down = True # 立即设置关闭标志
 
     # 等待一小段时间，让事件循环有机会处理完当前正在执行的任务
@@ -288,7 +312,8 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
 ━━━━━━━━━━━
 📅消息发送时间： {time_str} ({elapsed})
 """
-                 return MessageSegment.text(content)
+                 # 返回 Message 对象，而不是单个 MessageSegment
+                 return Message(MessageSegment.text(content))
 
         # 构建转发消息节点
         for msg_data in filtered_messages:

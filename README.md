@@ -44,8 +44,13 @@ WHOASKED_STORAGE_DAYS=3
 
 ## 更新日志
 
+### 0.2.3
+优化日志输出和消息记录
+> [!IMPORTANT]
+> 自该版本起，消息记录完成后将不再展示完成日志，可自行查看`message_records.json`文件以确定是否成功记录。
+
 ### 0.2.2
-优化日志输出和引用消息展示形式
+优化引用消息展示形式
 > [!IMPORTANT]
 > 自该版本起，`WHOASKED_MAX_MESSAGES`的默认值将更改为25
 
