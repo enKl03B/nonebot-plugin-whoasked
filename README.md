@@ -42,6 +42,10 @@ WHOASKED_STORAGE_DAYS=3
 - 该插件代码基本由AI完成，如有更好的改进建议欢迎提交pr
 - 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题/其他适配器的运行情况欢迎提交issue
 
+
+## TODO
+- [ ] 将数据存储迁移至数据库
+
 ## 更新日志
 
 ### 0.2.3
@@ -76,6 +80,7 @@ WHOASKED_STORAGE_DAYS=3
 ## 鸣谢
 - [NoneBot2](https://github.com/nonebot/nonebot2) - 跨平台 Python 异步机器人框架
 - [noneBot-plugin-localStore](https://github.com/nonebot/plugin-localstore) - 实现本地数据存储 
+
 以及所有未提及的相关项目❤
 
 ## 许可证
