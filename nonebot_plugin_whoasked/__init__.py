@@ -3,11 +3,10 @@ import time
 from functools import wraps
 from typing import Dict, List, Set, Any, Union, Optional, Callable, Awaitable
 import asyncio
-import sys # 导入 sys 模块
+import sys 
+import re
 
 from nonebot import get_driver, on_command, on_message, on_keyword
-import nonebot.log
-from nonebot.log import default_filter as original_default_filter, logger_id, default_format # 导入并重命名原始过滤器，导入 logger_id 和 default_format
 from nonebot.adapters.onebot.v11 import Bot, MessageSegment, GroupMessageEvent, MessageEvent, Message
 from nonebot.rule import Rule, to_me
 from nonebot.plugin import PluginMetadata
@@ -15,11 +14,11 @@ from nonebot import require, logger
 from nonebot.matcher import Matcher
 from nonebot.exception import FinishedException
 
-
 # 先导入依赖
 require("nonebot_plugin_localstore")
 from .config import Config, get_plugin_config
 from .data_manager import MessageRecorder
+from .log_filter import setup_log_filter  # 导入日志过滤器设置函数
 
 # 然后定义插件元数据
 __plugin_meta__ = PluginMetadata(
@@ -41,41 +40,6 @@ __plugin_meta__ = PluginMetadata(
 
 # --- 全局关闭状态标志 ---
 _is_shutting_down = False
-
-# --- 定义新的组合过滤器 ---
-def custom_whoasked_filter(record):
-    """日志过滤"""
-    # 应用原始的 NoneBot 默认过滤器
-    if not original_default_filter(record):
-        return False
-
-    log_name = record.get("name")
-    log_level_name = record.get("level").name
-    log_message = record.get("message", "")
-
-    # 条件 1: 过滤 record_msg 的 SUCCESS 完成日志 
-    if log_name == "nonebot" and log_level_name == "SUCCESS":
-        is_record_msg_matcher = "Matcher(type='message', module='nonebot_plugin_whoasked'" in log_message and "record_msg" in log_message
-        is_completion_log = "running complete" in log_message
-        if is_record_msg_matcher and is_completion_log:
-            return False # 过滤掉这条日志
-
-    # 条件 2: 过滤本插件内所有 Matcher 的 INFO 完成日志 
-    if log_name == "nonebot" and log_level_name == "INFO":
-        # 检查是否是 "running complete" 日志
-        is_whoasked_matcher_complete = "Matcher(" in log_message and "module=nonebot_plugin_whoasked" in log_message and "running complete" in log_message
-        if is_whoasked_matcher_complete:
-            logger.debug(f"条件2满足，INFO完成日志: {log_message}。将被过滤。")
-            return False # 过滤掉这条日志
-        
-        # 条件 3: 过滤本插件内所有 Matcher 的 "Event will be handled" 日志
-        is_whoasked_matcher_handle = log_message.startswith("Event will be handled by Matcher(") and "module=nonebot_plugin_whoasked" in log_message
-        if is_whoasked_matcher_handle:
-            logger.debug(f"条件3满足，INFO处理日志: {log_message}。将被过滤。")
-            return False # 过滤掉这条日志
-
-    # 如果以上条件都不满足，则保留该日志
-    return True
 
 # 全局配置
 global_config = get_driver().config
@@ -104,25 +68,9 @@ async def _startup():
     _is_shutting_down = False # 确保启动时标志为 False
     # 初始化消息记录器
     await init_message_recorder()
-
-    # --- 应用新的过滤器 (通过替换 Handler) ---
-    # 尝试移除默认 handler
-    try:
-        logger.remove(logger_id)
-        logger.debug("已移除默认日志处理器。") # 改为 DEBUG
-        # 添加新的 handler，使用自定义过滤器和默认格式
-        logger.add(
-            sys.stdout, # 输出到控制台
-            level=0, # level 设置为 0，让自定义 filter 完全控制
-            diagnose=False, # 根据需要设置
-            filter=custom_whoasked_filter, # 使用我们的过滤器
-            format=default_format # 使用 NoneBot 的默认格式
-        )
-    except ValueError:
-        # 如果 logger_id 已经被移除，这里会触发 ValueError
-        logger.warning("默认日志处理器已被移除或未找到。")
-
-
+    
+    # 设置日志过滤器
+    setup_log_filter()
 
 @driver.on_shutdown
 async def shutdown_hook():
@@ -298,7 +246,17 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
                 # 构建新的引用消息格式
                 content_msg = Message()
                 content_msg.append(MessageSegment.text("【引用了你的消息】\n"))
-                content_msg.append(MessageSegment.text(f"{msg_data['raw_message']}\n"))
+                
+                # 处理消息中的CQ码
+                raw_message = msg_data['raw_message']
+                # 删除CQ码，如[CQ:at,qq=xxxx]
+                processed_message = raw_message
+                # 使用正则表达式删除所有CQ码
+                processed_message = re.sub(r'\[CQ:[^\]]+\]', '', processed_message)
+                # 去除多余空格和首尾空格
+                processed_message = re.sub(r'\s+', ' ', processed_message).strip()
+                
+                content_msg.append(MessageSegment.text(f"{processed_message}\n"))
                 content_msg.append(MessageSegment.text("━━━━━━━━━━━\n"))
                 content_msg.append(MessageSegment.text("被引用的消息：\n"))
                 content_msg.extend(replied_message_content) # 添加处理后的被引用消息内容
@@ -306,9 +264,18 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
                 content_msg.append(MessageSegment.text(f"📅消息发送时间： {time_str} ({elapsed})"))
                 return content_msg
             else: # @消息保持原格式
+                 # 处理消息中的CQ码
+                 raw_message = msg_data['raw_message']
+                 # 删除CQ码，如[CQ:at,qq=xxxx]
+                 processed_message = raw_message
+                 # 使用正则表达式删除所有CQ码
+                 processed_message = re.sub(r'\[CQ:[^\]]+\]', '', processed_message)
+                 # 去除多余空格和首尾空格
+                 processed_message = re.sub(r'\s+', ' ', processed_message).strip()
+                 
                  content = f"""
-【@了你】
-{msg_data['raw_message']}
+【有人@了你】
+{processed_message}
 ━━━━━━━━━━━
 📅消息发送时间： {time_str} ({elapsed})
 """
