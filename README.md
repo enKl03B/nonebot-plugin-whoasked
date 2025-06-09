@@ -28,6 +28,7 @@ WHOASKED_MAX_MESSAGES=25
 WHOASKED_STORAGE_DAYS=3
 
 # 自定义触发关键词
+# 配置示例：WHOASKED_KEYWORDS=["谁问我了","who"]
 WHOASKED_KEYWORDS=["谁问我了"]
 
 ```
