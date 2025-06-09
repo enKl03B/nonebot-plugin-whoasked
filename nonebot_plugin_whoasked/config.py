@@ -1,7 +1,7 @@
 from nonebot import get_plugin_config, logger
 from nonebot.compat import BaseModel, field_validator
 from pydantic import Field
-from typing import Union
+from typing import Union, List, Set
 
 class Config(BaseModel):
     """插件配置类"""
@@ -19,6 +19,19 @@ class Config(BaseModel):
         gt=0,
         le=30
     )
+    
+    whoasked_keywords: Set[str] = Field(
+        default={"谁问我了"},
+        description="触发查询的关键词列表",
+    )
+
+    @field_validator("whoasked_keywords")
+    def validate_keywords(cls, v: Union[Set[str], List[str], str]):
+        if isinstance(v, str):
+            v = {v.strip() for v in v.split(",") if v.strip()}
+        elif isinstance(v, list):
+            v = set(v)
+        return v
 
     @field_validator("whoasked_max_messages")
     def validate_max_messages(cls, v: Union[int, str, float]):
@@ -29,7 +42,7 @@ class Config(BaseModel):
             return min(v, 100)  # 确保不超过上限
         except (ValueError, TypeError):
             logger.warning(f"无效的 whoasked_max_messages 配置值: {v}, 使用默认值 25")
-            return 20
+            return 25
 
     @field_validator("whoasked_storage_days")
     def validate_storage_days(cls, v: Union[int, str, float]):

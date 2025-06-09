@@ -6,9 +6,7 @@
 
 ## 功能
 
-- 记录群聊中的@消息和引用消息
-- 通过命令查询谁@了你或引用了你的消息
-- 支持配置最大返回消息数量和消息存储天数
+- 记录群聊中的@消息和引用消息，并通过命令查询谁@了你或引用了你的消息
 
 ## 安装
 
@@ -28,6 +26,10 @@ WHOASKED_MAX_MESSAGES=25
 
 # 消息存储天数，默认3，最大值30
 WHOASKED_STORAGE_DAYS=3
+
+# 自定义触发关键词
+WHOASKED_KEYWORDS=["谁问我了"]
+
 ```
 
 ## 使用
@@ -40,13 +42,16 @@ WHOASKED_STORAGE_DAYS=3
 
 ## 注意事项
 - 该插件代码基本由AI完成，如有更好的改进建议欢迎提交pr
-- 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题/其他适配器的运行情况欢迎提交issue
+- 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题欢迎提交issue
 
 
 ## TODO
 - [ ] 将数据存储迁移至数据库
 
 ## 更新日志
+
+### 0.2.5
+触发关键词可自定义
 
 ### 0.2.4
 新增CQ码过滤，分离日志过滤器
@@ -83,6 +88,7 @@ WHOASKED_STORAGE_DAYS=3
 ## 鸣谢
 - [NoneBot2](https://github.com/nonebot/nonebot2) - 跨平台 Python 异步机器人框架
 - [noneBot-plugin-localStore](https://github.com/nonebot/plugin-localstore) - 实现本地数据存储 
+- [Issue #1](https://github.com/enKl03B/nonebot-plugin-whoasked/issues/1#issuecomment-2955470018) - 自定义触发关键词方案
 
 以及所有未提及的相关项目❤
 

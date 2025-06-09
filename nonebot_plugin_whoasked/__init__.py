@@ -16,7 +16,7 @@ from nonebot.exception import FinishedException
 
 # 先导入依赖
 require("nonebot_plugin_localstore")
-from .config import Config, get_plugin_config
+from .config import Config, get_plugin_config, plugin_config
 from .data_manager import MessageRecorder
 from .log_filter import setup_log_filter  # 导入日志过滤器设置函数
 
@@ -87,7 +87,7 @@ async def shutdown_hook():
         await message_recorder.shutdown() # 然后再执行数据保存等清理操作
 
 # 关键词集合
-QUERY_KEYWORDS = {"谁问我了"}
+QUERY_KEYWORDS = plugin_config.whoasked_keywords
 
 # 修改错误处理装饰器
 def catch_exception(func: Callable) -> Callable:
@@ -109,7 +109,7 @@ def catch_exception(func: Callable) -> Callable:
 
 # --- 修改消息记录器注册，加入 Rule ---
 record_msg = on_message(rule=shutdown_aware_rule, priority=1, block=False) # 添加 rule
-@record_msg.handle() # 现在日志中看到的行号可能是这里
+@record_msg.handle() 
 async def _handle_record_msg(bot: Bot, event: MessageEvent):
     """记录所有消息"""
     # 无需在此处再次检查 _is_shutting_down，因为 Rule 已经阻止了它
@@ -128,7 +128,7 @@ async def _handle_record_msg(bot: Bot, event: MessageEvent):
         logger.error(traceback.format_exc())
 
 # 修改命令处理器
-who_at_me = on_command("谁问我了", priority=50, block=True)
+who_at_me = on_command("谁问我了", aliases=QUERY_KEYWORDS, priority=50, block=True)
 @who_at_me.handle()
 @catch_exception
 async def handle_who_at_me(bot: Bot, event: GroupMessageEvent):

@@ -18,7 +18,7 @@ class MessageRecorder:
     def __init__(self):
         # 使用异步锁保证线程安全
         self._lock = asyncio.Lock()
-        self._shutting_down = False  # 新增关闭标志
+        self._shutting_down = False  
         try:
             # 使用 get_plugin_data_dir 获取插件数据目录
             self.data_dir: Path = store.get_plugin_data_dir()
@@ -94,9 +94,8 @@ class MessageRecorder:
                     # 将 Message 对象转换为可序列化的字典列表
                     replied_message_segments = [{'type': seg.type, 'data': seg.data} for seg in reply_msg.message]
                 
-                # 优化：检查消息是否包含@或引用
+                # 检查消息是否包含@或引用
                 if not at_list and not is_reply:
-                    # logger.trace("消息既不包含@也不是回复，跳过记录") # 可以取消注释以进行调试
                     return # 如果消息无关，则直接返回，不记录
 
                 # --- 如果消息相关，则继续记录 --- 
