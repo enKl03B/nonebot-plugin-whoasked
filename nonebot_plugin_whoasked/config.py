@@ -25,6 +25,15 @@ class Config(BaseModel):
         description="触发查询的关键词列表",
     )
 
+    whoasked_show_avatar: bool = Field(
+        default=False,
+        description="是否在消息开头加上消息发送者头像",
+    )
+    whoasked_show_avatar_size: int = Field(
+        default=40,
+        description="消息发送者头像大小, 可用值: 40/160",
+    )
+
     @field_validator("whoasked_keywords")
     def validate_keywords(cls, v: Union[Set[str], List[str], str]):
         if isinstance(v, str):
