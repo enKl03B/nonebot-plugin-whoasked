@@ -182,6 +182,11 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
             # 保留原始消息的发送者信息
             sender_name = msg_data.get("sender_name", "未知用户")
             sender_id = msg_data.get("user_id", "10000")
+
+            isShowAvatar = plugin_config.whoasked_show_avatar
+            if isShowAvatar:
+                avatar_size = plugin_config.whoasked_show_avatar_size
+                node_content_message.append(MessageSegment.image(file=f"https://q1.qlogo.cn/g?b=qq&nk={sender_id}&s={avatar_size}"))
             
             # 处理消息内容
             if msg_data.get('is_reply', False):
