@@ -176,9 +176,57 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
 
         # 定义格式化函数
         def format_message_content(msg_data):
+            # 使用原始消息的发送者信息进行伪装
+            node_content_message = Message()
+            
+            # 保留原始消息的发送者信息
+            sender_name = msg_data.get("sender_name", "未知用户")
+            sender_id = msg_data.get("user_id", "10000")
+            
+            # 处理消息内容
+            if msg_data.get('is_reply', False):
+                # 对于回复类型的消息
+                node_content_message.append(MessageSegment.text("【引用了你的消息】\n"))
+                
+                # 处理原始消息内容，去除CQ码
+                raw_message = msg_data['raw_message']
+                processed_message = re.sub(r'\[CQ:[^\]]+\]', '', raw_message)
+                processed_message = re.sub(r'\s+', ' ', processed_message).strip()
+                
+                node_content_message.append(MessageSegment.text(processed_message))
+                
+                # 添加被引用的消息内容
+                if msg_data.get("replied_message_segments"):
+                    node_content_message.append(MessageSegment.text("\n------\n"))
+                    node_content_message.append(MessageSegment.text("\n被引用的消息：\n"))
+                    # 处理被引用的消息内容
+                    replied_message_segments = msg_data["replied_message_segments"]
+                    # 将字典转换为 MessageSegment
+                    replied_message = Message()
+                    for segment in replied_message_segments:
+                        replied_message.append(MessageSegment(segment["type"], segment["data"]))
+                    replied_text = re.sub(r'\[CQ:[^\]]+\]', '', str(replied_message))
+                    replied_text = re.sub(r'\s+', ' ', replied_text).strip()
+                    node_content_message.append(MessageSegment.text(replied_text))
+            else:
+                # 对于普通@消息
+                node_content_message.append(MessageSegment.text("【@了你】\n"))
+
+                raw_message = msg_data['raw_message']
+                processed_message = re.sub(r'\[CQ:[^\]]+\]', '', raw_message)
+                processed_message = re.sub(r'\s+', ' ', processed_message).strip()
+                
+                node_content_message.append(MessageSegment.text(processed_message))
+            
+            # 添加时间信息
             msg_time = msg_data["time"]
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(msg_time))
             time_passed = int(time.time()) - msg_time
+            
+            # 添加分割线
+            node_content_message.append(MessageSegment.text("\n------\n"))
+
+            # 计算时间间隔
             if time_passed < 60:
                 elapsed = f"{time_passed}秒前"
             elif time_passed < 3600:
@@ -187,114 +235,27 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
                 elapsed = f"{time_passed//3600}小时前"
             else:
                 elapsed = f"{time_passed//86400}天前"
-
-            if msg_data.get('is_reply', False):
-                replied_segments_data = msg_data.get('replied_message_segments') # 获取可能存在的字段
-                replied_message_content = Message() # 初始化为空 Message
-                
-                # 检查是否为新格式数据 (包含有效的 segments 列表)
-                if replied_segments_data and isinstance(replied_segments_data, list):
-                    try:
-                        # 手动从字典列表构建 MessageSegment 并添加到 replied_message_content
-                        for seg_data in replied_segments_data:
-                            # 创建单个 MessageSegment
-                            try:
-                                seg = MessageSegment(type=seg_data['type'], data=seg_data['data'])
-                            except Exception as seg_e:
-                                logger.warning(f"创建消息段失败: {seg_e} 数据: {seg_data}")
-                                continue # 跳过无法创建的段
-                                
-                            # 处理不同类型的消息段
-                            if seg.type == "text":
-                                replied_message_content.append(seg)
-                            elif seg.type == "image":
-                                # 将图片显示为文字标识
-                                replied_message_content.append(MessageSegment.text("[图片]"))
-                            # 添加对其他类型消息段的处理
-                            else:
-                                # 定义类型到中文名称的映射
-                                type_mapping = {
-                                    "face": "表情",
-                                    "record": "语音",
-                                    "video": "视频",
-                                    "at": "@",
-                                    "rps": "猜拳",
-                                    "dice": "骰子",
-                                    "share": "链接分享",
-                                    "contact": "名片",
-                                    "location": "位置",
-                                    "music": "音乐",
-                                    "forward": "合并消息",
-                                    "json": "JSON消息",
-                                    "file": "文件",
-                                    "markdown": "Markdown",
-                                    "lightapp": "小程序",
-                                    "mface": "大表情"
-                                }
-                                # 查找中文名，找不到则使用原始类型或通用提示
-                                display_name = type_mapping.get(seg.type, seg.type.capitalize())
-                                replied_message_content.append(MessageSegment.text(f"[{display_name}]"))
-                    except Exception as e:
-                        logger.error(f"反序列化被引用消息失败: {e}")
-                        # 清空可能已部分添加的内容，并添加错误提示
-                        replied_message_content.clear()
-                        replied_message_content.append(MessageSegment.text("[无法加载被引用消息]")) 
-                else:
-                    # 处理旧格式数据或加载失败的情况
-                    replied_message_content.append(MessageSegment.text("[旧格式数据，无法加载被引用消息内容]"))
-
-                # 构建新的引用消息格式
-                content_msg = Message()
-                content_msg.append(MessageSegment.text("【引用了你的消息】\n"))
-                
-                # 处理消息中的CQ码
-                raw_message = msg_data['raw_message']
-                # 删除CQ码，如[CQ:at,qq=xxxx]
-                processed_message = raw_message
-                # 使用正则表达式删除所有CQ码
-                processed_message = re.sub(r'\[CQ:[^\]]+\]', '', processed_message)
-                # 去除多余空格和首尾空格
-                processed_message = re.sub(r'\s+', ' ', processed_message).strip()
-                
-                content_msg.append(MessageSegment.text(f"{processed_message}\n"))
-                content_msg.append(MessageSegment.text("━━━━━━━━━━━\n"))
-                content_msg.append(MessageSegment.text("被引用的消息：\n"))
-                content_msg.extend(replied_message_content) # 添加处理后的被引用消息内容
-                content_msg.append(MessageSegment.text("\n━━━━━━━━━━━\n"))
-                content_msg.append(MessageSegment.text(f"📅消息发送时间： {time_str} ({elapsed})"))
-                return content_msg
-            else: # @消息保持原格式
-                 # 处理消息中的CQ码
-                 raw_message = msg_data['raw_message']
-                 # 删除CQ码，如[CQ:at,qq=xxxx]
-                 processed_message = raw_message
-                 # 使用正则表达式删除所有CQ码
-                 processed_message = re.sub(r'\[CQ:[^\]]+\]', '', processed_message)
-                 # 去除多余空格和首尾空格
-                 processed_message = re.sub(r'\s+', ' ', processed_message).strip()
-                 
-                 content = f"""
-【有人@了你】
-{processed_message}
-━━━━━━━━━━━
-📅消息发送时间： {time_str} ({elapsed})
-"""
-                 # 返回 Message 对象，而不是单个 MessageSegment
-                 return Message(MessageSegment.text(content))
+            
+            node_content_message.append(MessageSegment.text(f"\n📅消息发送时间： {time_str} ({elapsed})"))
+            
+            # 将 Message 对象序列化为 API 需要的列表格式
+            node_content_serializable = [{'type': seg.type, 'data': seg.data} for seg in node_content_message]
+            
+            # 构建 node 消息
+            node_content = {
+                "type": "node",
+                "data": {
+                    "nickname": sender_name,     # 使用原始发送者昵称
+                    "user_id": sender_id,        # 使用原始发送者ID
+                    "content": node_content_serializable
+                }
+            }
+            
+            return node_content
 
         # 构建转发消息节点
         for msg_data in filtered_messages:
-            node_content_message = format_message_content(msg_data) # 返回 Message 对象
-            # 将 Message 对象显式序列化为 API 需要的列表格式
-            node_content_serializable = [{'type': seg.type, 'data': seg.data} for seg in node_content_message]
-            forward_messages.append({
-                "type": "node",
-                "data": {
-                    "nickname": msg_data["sender_name"],
-                    "user_id": msg_data["user_id"],
-                    "content": node_content_serializable # 使用序列化后的列表
-                }
-            })
+            forward_messages.append(format_message_content(msg_data))
         
         # 添加性能日志
         logger.info(f"处理查询请求耗时: {time.time() - start_time:.2f}秒")
