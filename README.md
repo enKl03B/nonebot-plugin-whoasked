@@ -59,11 +59,14 @@ WHOASKED_SHOW_AVATAR_SIZE=40
 
 ## 更新日志
 
+### 0.2.7
+添加头像显示([PR #3](https://github.com/enKl03B/nonebot-plugin-whoasked/pull/3))
+
 ### 0.2.6
 尝试利用伪造转发以实现更好的消息展示
 
 ### 0.2.5
-触发关键词可自定义
+触发关键词可自定义([Issue #1](https://github.com/enKl03B/nonebot-plugin-whoasked/issues/1#issuecomment-2955470018))
 
 ### 0.2.4
 新增CQ码过滤，分离日志过滤器
