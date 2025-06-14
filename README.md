@@ -32,6 +32,8 @@ WHOASKED_STORAGE_DAYS=3
 WHOASKED_KEYWORDS=["谁问我了"]
 
 # 是否在消息开头加上消息发送者头像, 默认关闭
+# 正常情况下, 消息中会正常显示消息发送者头像和昵称
+# 由于LLonebot "伪造的消息会以 Bot 身份显示", 所以增加此配置
 WHOASKED_SHOW_AVATAR=False
 
 # 消息发送者头像大小, 可用值: 40/160
