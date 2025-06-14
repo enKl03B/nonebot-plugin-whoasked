@@ -31,6 +31,12 @@ WHOASKED_STORAGE_DAYS=3
 # 配置示例：WHOASKED_KEYWORDS=["谁问我了","who"]
 WHOASKED_KEYWORDS=["谁问我了"]
 
+# 是否在消息开头加上消息发送者头像, 默认关闭
+WHOASKED_SHOW_AVATAR=False
+
+# 消息发送者头像大小, 可用值: 40/160
+WHOASKED_SHOW_AVATAR_SIZE=40
+
 ```
 
 ## 使用
