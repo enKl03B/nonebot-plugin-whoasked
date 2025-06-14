@@ -103,7 +103,7 @@ WHOASKED_SHOW_AVATAR_SIZE=40
 ## 鸣谢
 - [NoneBot2](https://github.com/nonebot/nonebot2) - 跨平台 Python 异步机器人框架
 - [noneBot-plugin-localStore](https://github.com/nonebot/plugin-localstore) - 实现本地数据存储 
-- [Issue #1](https://github.com/enKl03B/nonebot-plugin-whoasked/issues/1#issuecomment-2955470018) - 自定义触发关键词方案
+
 
 以及所有未提及的相关项目❤
 
