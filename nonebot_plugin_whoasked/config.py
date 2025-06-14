@@ -63,5 +63,10 @@ class Config(BaseModel):
         except (ValueError, TypeError):
             logger.warning(f"无效的 whoasked_storage_days 配置值: {v}, 使用默认值 3")
             return 3
+    @field_validator("whoasked_show_avatar_size")
+    def validate_avatar_size(cls, v: int):
+        if v not in {40, 160}:
+            raise ValueError("头像大小必须是 40 或 160")
+        return v
 
 plugin_config = get_plugin_config(Config)
