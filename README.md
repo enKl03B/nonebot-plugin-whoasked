@@ -31,6 +31,14 @@ WHOASKED_STORAGE_DAYS=3
 # 配置示例：WHOASKED_KEYWORDS=["谁问我了","who"]
 WHOASKED_KEYWORDS=["谁问我了"]
 
+# 是否在消息开头加上消息发送者头像, 默认关闭
+# 在使用Napcat作为协议端的情况下, 消息中会正常显示消息发送者头像和昵称
+# 由于部分协议端暂不支持伪造转发, 所以增加此配置
+WHOASKED_SHOW_AVATAR=False
+
+# 消息发送者头像大小, 可用值: 40/160，仅在`WHOASKED_SHOW_AVATAR=True`时生效
+WHOASKED_SHOW_AVATAR_SIZE=40
+
 ```
 
 ## 使用
