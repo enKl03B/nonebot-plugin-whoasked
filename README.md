@@ -51,7 +51,7 @@ WHOASKED_SHOW_AVATAR_SIZE=40
 
 ## 注意事项
 - 该插件代码基本由AI完成，如有更好的改进建议欢迎提交pr
-- 目前仅使用了`OnebotV11适配器+Napcat`，在Windows/Linux系统下测试通过，如有兼容性问题欢迎提交issue
+- 目前仅使用了`OnebotV11适配器+Napcat/Lagrange`，在Windows/Linux系统下测试通过，如有兼容性问题欢迎提交issue
 
 
 ## TODO
