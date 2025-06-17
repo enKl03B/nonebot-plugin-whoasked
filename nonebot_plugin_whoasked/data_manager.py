@@ -20,7 +20,7 @@ class MessageRecorder:
         self._lock = asyncio.Lock()
         self._shutting_down = False  
         try:
-            # 使用 get_plugin_data_dir 获取插件数据目录
+            # 获取插件数据目录
             self.data_dir: Path = store.get_plugin_data_dir()
             # 创建数据目录（如果不存在）
             self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -109,7 +109,7 @@ class MessageRecorder:
                     "at_list": at_list,
                     "is_reply": is_reply,
                     "reply_user_id": reply_user_id,
-                    "replied_message_segments": replied_message_segments, # 新增字段
+                    "replied_message_segments": replied_message_segments, 
                     "group_id": group_id,
                     "sender_name": event.sender.card or event.sender.nickname if isinstance(event, GroupMessageEvent) else event.sender.nickname
                 }

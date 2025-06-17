@@ -59,6 +59,9 @@ WHOASKED_SHOW_AVATAR_SIZE=40
 
 ## 更新日志
 
+### 0.2.8
+优化头像显示模式下的展示效果
+
 ### 0.2.7
 添加头像显示([PR #3](https://github.com/enKl03B/nonebot-plugin-whoasked/pull/3))
 

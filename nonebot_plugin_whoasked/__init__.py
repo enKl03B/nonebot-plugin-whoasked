@@ -186,7 +186,11 @@ async def process_query(bot: Bot, event: GroupMessageEvent, matcher: Matcher):
             isShowAvatar = plugin_config.whoasked_show_avatar
             if isShowAvatar:
                 avatar_size = plugin_config.whoasked_show_avatar_size
+                node_content_message.append(MessageSegment.text("该消息由"))
+                node_content_message.append(MessageSegment.text(f"【{sender_name}】"))
                 node_content_message.append(MessageSegment.image(file=f"https://q1.qlogo.cn/g?b=qq&nk={sender_id}&s={avatar_size}"))
+                node_content_message.append(MessageSegment.text("发送"))
+
             
             # 处理消息内容
             if msg_data.get('is_reply', False):
